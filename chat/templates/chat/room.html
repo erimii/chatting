@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Room: {{ room_name }}</title>
+    <style>
+      #chat-log { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px;}
+      #chat-message-input { width: calc(100% - 80px); padding: 5px; }
+      #chat-message-submit { width: 70px; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Chat Room: {{ room_name }}</h1>
+
+    <div id="chat-log"></div>
+
+    <input id="chat-message-input" type="text" size="100"><br>
+    <input id="chat-message-submit" type="button" value="Send">
+
+    {{ room_name|json_script:"room-name" }}
+    {{ user.username|json_script:"user-name" }}
+
+    <script>
+      const roomName = JSON.parse(document.getElementById('room-name').textContent);
+      const userName = JSON.parse(document.getElementById('user-name').textContent);
+      const chatSocket = new WebSocket( 'ws://' + window.location.host + '/ws/chat/' + roomName + '/' );
+      chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const message = data.message;
+        const user = data.user;
+        const timestamp = data.timestamp;
+        const chatLog = document.querySelector('#chat-log');
+        chatLog.innerHTML += `<b>${user}:</b> ${message}<br>`;
+        chatLog.scrollTop = chatLog.scrollHeight;
+      };
+
+    chatSocket.onclose = function(e) { console.error('Chat socket closed unexpectedly'); document.querySelector('#chat-log').innerHTML += '<p style="color: red;">Disconnected from chat.</p>'; };
+
+    const chatInput = document.querySelector('#chat-message-input');
+    const chatSubmit = document.querySelector('#chat-message-submit');
+
+    chatInput.focus();
+    chatInput.onkeyup = function(e) {
+      if (e.key === 'Enter') {
+        chatSubmit.click();
+      }
+    };
+    chatSubmit.onclick = function(e) {
+      const message = chatInput.value;
+       if (message.trim() === '') {
+        return;
+       }
+       chatSocket.send(JSON.stringify({
+        'message': message
+       }));
+       chatInput.value = '';
+      };
+
+      document.addEventListener('DOMContentLoaded', function() { const chatLog = document.querySelector('#chat-log'); chatLog.scrollTop = chatLog.scrollHeight; });
+    </script>
+</body>
+</html>
